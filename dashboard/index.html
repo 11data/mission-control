@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Team Mission Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'gray-750': '#2d374a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .task-card {
+            transition: all 0.2s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+        }
+        .task-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .column {
+            transition: all 0.2s ease;
+        }
+        .column.drag-over {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 2px dashed #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-gray-800 to-gray-750 border-b border-gray-700 px-6 py-6">
+        <div class="max-w-screen-2xl mx-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <div>
+                            <h1 class="text-2xl font-bold text-white">TaskFlow Mission Control</h1>
+                            <p class="text-sm text-gray-400">API-Driven Team Dashboard</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 text-sm text-gray-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="timestamp"></span>
+                    </div>
+                    <button onclick="loadTasks()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Refresh
+                    </button>
+                    <div id="stats" class="text-sm text-gray-400"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="px-6 py-8">
+        <div class="max-w-screen-2xl mx-auto">
+            <!-- Column Headers -->
+            <div class="grid grid-cols-[220px_repeat(5,minmax(200px,1fr))] gap-4 mb-4">
+                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Team Member</div>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 text-sm font-semibold text-gray-300">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Backlog
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 text-sm font-semibold text-gray-300">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                        To-Do
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 text-sm font-semibold text-gray-300">
+                        <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        In Progress
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 text-sm font-semibold text-gray-300">
+                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        Review
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 text-sm font-semibold text-gray-300">
+                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Done
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Grid Container -->
+            <div id="taskGrid"></div>
+
+            <!-- Loading State -->
+            <div id="loading" class="text-center py-20">
+                <svg class="inline-block w-8 h-8 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-400 mt-4">Loading tasks from API...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'http://100.119.145.16:8090';
+        const AGENTS = ['mira', 'felix', 'werner', 'sophie', 'martin', 'nina', 'jon'];
+        const STATUS_MAP = {
+            'backlog': { color: 'gray', label: 'Backlog' },
+            'todo': { color: 'blue', label: 'To-Do' },
+            'in-progress': { color: 'yellow', label: 'In Progress' },
+            'review': { color: 'purple', label: 'Review' },
+            'done': { color: 'green', label: 'Done' }
+        };
+
+        let allTasks = [];
+        let draggedTask = null;
+        let savedScrollPosition = 0;
+
+        // Update timestamp
+        function updateTimestamp() {
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        }
+        updateTimestamp();
+        setInterval(updateTimestamp, 60000);
+
+        // Load tasks from API
+        async function loadTasks(preserveScroll = false) {
+            try {
+                // Save scroll position if requested
+                if (preserveScroll) {
+                    savedScrollPosition = window.scrollY;
+                }
+                
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('taskGrid').style.display = 'none';
+                
+                const response = await fetch(`${API_URL}/tasks`);
+                allTasks = await response.json();
+                
+                // Load stats
+                const statsResponse = await fetch(`${API_URL}/stats`);
+                const stats = await statsResponse.json();
+                document.getElementById('stats').textContent = `${stats.total} tasks total`;
+                
+                renderDashboard();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('taskGrid').style.display = 'block';
+                
+                // Restore scroll position if it was saved
+                if (preserveScroll && savedScrollPosition > 0) {
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, savedScrollPosition);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="text-red-500">
+                        <svg class="inline-block w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>Failed to load tasks from API</p>
+                        <button onclick="loadTasks()" class="mt-4 px-4 py-2 bg-blue-600 rounded">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            const grid = document.getElementById('taskGrid');
+            grid.innerHTML = '';
+            
+            AGENTS.forEach(agent => {
+                const agentTasks = allTasks.filter(t => t.assignee === agent);
+                const row = createAgentRow(agent, agentTasks);
+                grid.appendChild(row);
+            });
+            
+            // Reattach drag listeners
+            attachDragListeners();
+        }
+
+        // Create agent row
+        function createAgentRow(agent, tasks) {
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-[220px_repeat(5,minmax(200px,1fr))] gap-4 mb-4';
+            
+            // Agent card
+            row.innerHTML = `
+                <div class="bg-gray-750 rounded-lg p-4 flex items-center gap-3 hover:bg-gray-700 transition-colors">
+                    <img src="${agent}.png" alt="${agent}" class="w-12 h-12 rounded-lg object-cover border-2 border-gray-600" onerror="this.style.display='none'">
+                    <div>
+                        <div class="font-semibold capitalize">${agent}</div>
+                        <div class="text-sm text-gray-400">${tasks.length} tasks</div>
+                    </div>
+                </div>
+            `;
+            
+            // Status columns
+            ['backlog', 'todo', 'in-progress', 'review', 'done'].forEach(status => {
+                const column = createColumn(agent, status, tasks.filter(t => t.status === status));
+                row.appendChild(column);
+            });
+            
+            return row;
+        }
+
+        // Create column
+        function createColumn(agent, status, tasks) {
+            const column = document.createElement('div');
+            column.className = 'column bg-gray-750/50 rounded-lg p-3 min-h-[100px]';
+            column.dataset.agent = agent;
+            column.dataset.status = status;
+            
+            if (tasks.length === 0) {
+                column.innerHTML = '<div class="text-center text-gray-600 py-8">—</div>';
+            } else {
+                tasks.forEach(task => {
+                    column.appendChild(createTaskCard(task));
+                });
+            }
+            
+            return column;
+        }
+
+        // Create task card
+        function createTaskCard(task) {
+            const color = STATUS_MAP[task.status]?.color || 'gray';
+            const card = document.createElement('div');
+            card.className = `task-card bg-gray-800 rounded-lg p-3 mb-2 border-l-4 border-${color}-500 hover:ring-2 hover:ring-${color}-500/50 cursor-move`;
+            card.draggable = true;
+            card.dataset.taskId = task.id;
+            
+            const priorityBadge = task.priority === 'high' ? '<span class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">High</span>' : 
+                                  task.priority === 'urgent' ? '<span class="text-xs bg-red-600/30 text-red-300 px-2 py-0.5 rounded">Urgent!</span>' : '';
+            
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-2 mb-1">
+                    <div class="font-medium text-sm flex-1">${task.title}</div>
+                    ${priorityBadge}
+                </div>
+                ${task.description ? `<div class="text-xs text-gray-400 line-clamp-2">${task.description}</div>` : ''}
+            `;
+            
+            return card;
+        }
+
+        // Attach drag listeners
+        function attachDragListeners() {
+            // Draggable cards
+            document.querySelectorAll('.task-card').forEach(card => {
+                card.addEventListener('dragstart', e => {
+                    draggedTask = card;
+                    card.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                
+                card.addEventListener('dragend', e => {
+                    card.classList.remove('dragging');
+                    document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
+                });
+            });
+            
+            // Drop zones
+            document.querySelectorAll('.column').forEach(column => {
+                column.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    column.classList.add('drag-over');
+                });
+                
+                column.addEventListener('dragleave', e => {
+                    column.classList.remove('drag-over');
+                });
+                
+                column.addEventListener('drop', async e => {
+                    e.preventDefault();
+                    column.classList.remove('drag-over');
+                    
+                    if (!draggedTask) return;
+                    
+                    const taskId = draggedTask.dataset.taskId;
+                    const newStatus = column.dataset.status;
+                    const oldStatus = draggedTask.parentElement.dataset.status;
+                    const agent = column.dataset.agent;
+                    
+                    // Optimistic update: move the card immediately in the DOM
+                    const taskCard = draggedTask.cloneNode(true);
+                    const targetColumn = column;
+                    
+                    // Update border color to match new status
+                    const color = STATUS_MAP[newStatus]?.color || 'gray';
+                    taskCard.className = `task-card bg-gray-800 rounded-lg p-3 mb-2 border-l-4 border-${color}-500 hover:ring-2 hover:ring-${color}-500/50 cursor-move`;
+                    
+                    // Remove old card
+                    draggedTask.remove();
+                    
+                    // Add to new column
+                    if (targetColumn.querySelector('.text-gray-600')) {
+                        // Remove empty state
+                        targetColumn.innerHTML = '';
+                    }
+                    targetColumn.appendChild(taskCard);
+                    
+                    // Update task in local state
+                    const task = allTasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.status = newStatus;
+                    }
+                    
+                    // Check if old column is now empty
+                    const oldColumn = document.querySelector(`[data-agent="${agent}"][data-status="${oldStatus}"]`);
+                    if (oldColumn && oldColumn.children.length === 0) {
+                        oldColumn.innerHTML = '<div class="text-center text-gray-600 py-8">—</div>';
+                    }
+                    
+                    // Re-attach drag listeners to the new card
+                    attachDragListeners();
+                    
+                    // Update API in background (no UI reload)
+                    try {
+                        await fetch(`${API_URL}/tasks/${taskId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: newStatus })
+                        });
+                    } catch (error) {
+                        console.error('Failed to update task:', error);
+                        alert('Failed to update task status - refresh to see current state');
+                        // Optionally reload on error
+                        await loadTasks();
+                    }
+                });
+            });
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadTasks, 30000);
+
+        // Initial load
+        loadTasks();
+    </script>
+</body>
+</html>
