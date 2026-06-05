@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mission Control — Opportunities</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans'; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  <div class="min-h-screen flex">
+    <aside class="w-72 bg-[#0f1724] p-6">
+      <h2 class="text-2xl font-semibold mb-6">Mission Control</h2>
+      <nav class="space-y-2">
+        <a href="/" class="block px-3 py-2 rounded hover:bg-white/5">Dashboard</a>
+        <a href="/opportunities.html" class="block px-3 py-2 rounded bg-white/6">Opportunities</a>
+        <a href="/" class="block px-3 py-2 rounded hover:bg-white/5">Tasks</a>
+        <a href="/" class="block px-3 py-2 rounded hover:bg-white/5">Calendar</a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 p-8">
+      <header class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold">Opportunities</h1>
+        <div class="flex items-center gap-3">
+          <button id="refreshBtn" class="px-3 py-2 bg-white/6 rounded">Refresh</button>
+          <button id="newOpp" class="px-3 py-2 bg-amber-500 text-black rounded">New Opportunity</button>
+        </div>
+      </header>
+
+      <section class="mb-6">
+        <div class="grid grid-cols-4 gap-4">
+          <div class="bg-white/5 p-4 rounded">Total deals<br><span id="totalDeals" class="text-2xl font-semibold">—</span></div>
+          <div class="bg-white/5 p-4 rounded">Open<br><span id="openDeals" class="text-2xl font-semibold">—</span></div>
+          <div class="bg-white/5 p-4 rounded">Value (EUR)<br><span id="totalValue" class="text-2xl font-semibold">—</span></div>
+          <div class="bg-white/5 p-4 rounded">Won<br><span id="wonDeals" class="text-2xl font-semibold">—</span></div>
+        </div>
+      </section>
+
+      <section x-data="oppsApp()" class="space-y-6">
+        <div class="flex gap-4">
+          <template x-for="stage in stages" :key="stage">
+            <div class="bg-white/5 p-4 rounded w-1/6 flex flex-col" :id="`col-${stage}`">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold" x-text="stageLabels[stage]"></h3>
+                <span class="text-sm bg-white/10 px-2 py-0.5 rounded" x-text="counts[stage] || 0"></span>
+              </div>
+
+              <div class="flex-1 space-y-3" :data-stage="stage" @dragover.prevent @drop="onDrop($event, stage)">
+                <template x-for="opp in byStage[stage]" :key="opp.id">
+                  <div draggable="true" @dragstart="onDragStart($event, opp.id)" class="bg-gray-800 p-3 rounded shadow">
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <div class="text-sm font-semibold" x-text="opp.title"></div>
+                        <div class="text-xs text-gray-400" x-text="opp.company + ' · ' + (opp.owner||'')"></div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-sm font-semibold" x-text="formatCurrency(opp.value, opp.currency)"></div>
+                        <div class="text-xs text-gray-400" x-text="opp.close_date || ''"></div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- Modal (new opportunity) -->
+      <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
+        <div class="bg-gray-900 p-6 rounded w-2/5">
+          <h2 class="text-xl font-semibold mb-4">New Opportunity</h2>
+          <div class="space-y-3">
+            <input id="title" class="w-full p-2 bg-white/5 rounded" placeholder="Title" />
+            <input id="company" class="w-full p-2 bg-white/5 rounded" placeholder="Company" />
+            <div class="flex gap-2">
+              <input id="value" type="number" class="w-1/2 p-2 bg-white/5 rounded" placeholder="Value" />
+              <input id="close_date" type="date" class="w-1/2 p-2 bg-white/5 rounded" />
+            </div>
+            <div class="flex justify-end gap-2">
+              <button id="cancel" class="px-3 py-2 rounded bg-white/6">Cancel</button>
+              <button id="create" class="px-3 py-2 bg-amber-500 text-black rounded">Create</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+<script>
+function oppsApp(){
+  return {
+    stages: ['lead','qualification','proposal','negotiation','closed_won','closed_lost'],
+    stageLabels: { lead:'Lead', qualification:'Qualification', proposal:'Proposal', negotiation:'Negotiation', closed_won:'Won', closed_lost:'Lost' },
+    byStage: { }, counts: {},
+    init(){ this.load(); document.getElementById('refreshBtn').addEventListener('click', ()=>this.load()); document.getElementById('newOpp').addEventListener('click', ()=>document.getElementById('modal').classList.remove('hidden'));
+      document.getElementById('cancel').addEventListener('click', ()=>document.getElementById('modal').classList.add('hidden'));
+      document.getElementById('create').addEventListener('click', ()=>this.create());
+    },
+    async load(){
+      const res = await fetch('http://guenther.tail360cf1.ts.net:8090/opportunities').catch(()=>null);
+      const list = res && res.ok ? await res.json() : [];
+      this.byStage = {}; this.counts = {};
+      this.stages.forEach(s=>this.byStage[s]=[]);
+      let totalValue=0;
+      list.forEach(o=>{ this.byStage[o.stage||'lead'].push(o); this.counts[o.stage]=(this.counts[o.stage]||0)+1; totalValue += (o.value||0); });
+      document.getElementById('totalDeals').innerText = list.length;
+      document.getElementById('openDeals').innerText = (list.filter(o=>o.status!=='archived').length);
+      document.getElementById('totalValue').innerText = totalValue.toLocaleString('en-US');
+      document.getElementById('wonDeals').innerText = this.counts['closed_won']||0;
+      // compute counts per stage for badges
+      this.stages.forEach(s=>{ if(!this.counts[s]) this.counts[s]=0; });
+    },
+    formatCurrency(v,c){ if(!v) return '-'; return (c||'EUR')+' '+Number(v).toLocaleString(); },
+    onDragStart(e,id){ e.dataTransfer.setData('text/plain', id); },
+    async onDrop(e, stage){ const id = e.dataTransfer.getData('text/plain'); if(!id) return; // call API to update stage
+      await fetch('http://guenther.tail360cf1.ts.net:8090/opportunities/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body: JSON.stringify({stage})}).catch(()=>null);
+      await this.load();
+    },
+    async create(){ const title=document.getElementById('title').value; const company=document.getElementById('company').value; const value=Number(document.getElementById('value').value||0); const close_date=document.getElementById('close_date').value;
+      const payload={title,company,owner:'jon',value,currency:'EUR',stage:'lead',status:'open',close_date,source:'inbound'};
+      await fetch('http://guenther.tail360cf1.ts.net:8090/opportunities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>null);
+      document.getElementById('modal').classList.add('hidden'); this.load();
+    }
+  }
+}
+// init Alpine after DOM
+document.addEventListener('alpine:init', ()=>{});
+window.addEventListener('load', ()=>{ const app = document.querySelector('[x-data]'); if(app && app.__x) { } });
+</script>
+</body>
+</html>
