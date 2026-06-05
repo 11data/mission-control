@@ -1,0 +1,74 @@
+openapi: 3.0.3
+info:
+  title: Mission Control - Opportunities API
+  version: 0.1.0
+servers:
+  - url: http://guenther.tail360cf1.ts.net:8090
+paths:
+  /opportunities:
+    get:
+      summary: List opportunities
+      responses:
+        '200':
+          description: A JSON array of opportunities
+    post:
+      summary: Create opportunity
+      requestBody:
+        required: true
+      responses:
+        '201':
+          description: Created
+  /opportunities/{id}:
+    get:
+      summary: Get opportunity
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Opportunity object
+    patch:
+      summary: Update opportunity
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: Updated
+  /opportunities/{id}/tasks:
+    get:
+      summary: List tasks for opportunity
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of tasks
+    post:
+      summary: Link a task to opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '201':
+          description: Created
+components: {}
