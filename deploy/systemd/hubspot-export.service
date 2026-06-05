@@ -1,0 +1,17 @@
+[Unit]
+Description=Mission Control - HubSpot export runner
+After=network.target
+
+[Service]
+Type=simple
+User=clawd
+WorkingDirectory=/home/clawd/dev/mission-control
+Environment=MISSION_CONTROL_API=http://guenther.tail360cf1.ts.net:8090
+# HUBSPOT_PRIVATE_APP_KEY must be provided via systemd drop-in or environment file managed in vault
+EnvironmentFile=/etc/mission-control/mission-control.env
+ExecStart=/home/clawd/dev/mission-control/integrations/hubspot/export_runner.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
